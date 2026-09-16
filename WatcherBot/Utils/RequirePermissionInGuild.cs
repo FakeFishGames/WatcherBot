@@ -17,16 +17,20 @@ public class RequirePermissionInGuild : CheckBaseAttribute
         this.permissions = permissions;
     }
 
-    public override async Task<bool> ExecuteCheckAsync(CommandContext ctx, bool help)
+    public override Task<bool> ExecuteCheckAsync(CommandContext ctx, bool help)
     {
-        var botMain = (BotMain?)ctx.Services.GetService(typeof(BotMain));
-        if (botMain?.OutputGuild is null)
+        try
         {
-            return false;
+            if (ctx.Member is not { } member)
+            {
+                return Task.FromResult(false);
+            }
+
+            return Task.FromResult(member?.Permissions.HasFlag(permissions) ?? false);
         }
-
-        DiscordMember? member = await botMain.OutputGuild.GetMemberAsync(ctx.User.Id);
-
-        return member?.Permissions.HasFlag(permissions) ?? false;
+        catch (Exception exception)
+        {
+            return Task.FromException<bool>(exception);
+        }
     }
 }

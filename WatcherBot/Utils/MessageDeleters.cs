@@ -8,7 +8,9 @@ using DisCatSharp.EventArgs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 using WatcherBot.Models;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace WatcherBot.Utils;
 
@@ -47,7 +49,7 @@ public class MessageDeleters : IDisposable
     {
         Delete DeletionCondition()
         {
-            var thread = botMain.OutputGuild.GetThread(args.Channel.Id);
+            DiscordThreadChannel thread = args.Guild.GetThread(args.Channel.Id);
 
             if (config.InvitesAllowedOnChannels.Contains(args.Message.Channel.Id)
                 || (thread is { Parent.Id: var parentId } && config.InvitesAllowedOnChannels.Contains(parentId)))
@@ -55,7 +57,7 @@ public class MessageDeleters : IDisposable
                 return Delete.No;
             }
 
-            if (args.Guild is null || config.InvitesAllowedOnServers.Contains(args.Guild.Id))
+            if (config.InvitesAllowedOnServers.Contains(args.Guild.Id))
             {
                 return Delete.No;
             }
@@ -172,9 +174,9 @@ public class MessageDeleters : IDisposable
 
     public Task DeleteBadWords(DiscordClient sender, MessageCreateEventArgs args)
     {
-        Task _ = Task.Run(async () =>
+        Task _ = Task.Run(() =>
         {
-            if (!args.Channel.IsPrivate && botMain.OutputGuild != args.Guild)
+            if (!args.Channel.IsPrivate && !config.GuildSpecificConfigurations.ContainsKey(args.Guild.Id))
             {
                 return;
             }
@@ -184,12 +186,12 @@ public class MessageDeleters : IDisposable
                 return;
             }
 
-            if (await botMain.IsUserModerator(args.Author) == IsModerator.Yes)
+            if (botMain.IsUserModerator(args.Author) == IsModerator.Yes)
             {
                 return;
             }
 
-            if (await botMain.IsUserExemptFromSpamFilter(args.Author) == IsExemptFromSpamFilter.Yes)
+            if (botMain.IsUserExemptFromSpamFilter(args.Author) == IsExemptFromSpamFilter.Yes)
             {
                 return;
             }
@@ -224,9 +226,9 @@ public class MessageDeleters : IDisposable
 
     public Task DeletePotentialSpam(DiscordClient sender, MessageCreateEventArgs args)
     {
-        Task _ = Task.Run(async () =>
+        Task _ = Task.Run(() =>
         {
-            if (!args.Channel.IsPrivate && botMain.OutputGuild != args.Guild)
+            if (!args.Channel.IsPrivate && !config.GuildSpecificConfigurations.ContainsKey(args.Guild.Id))
             {
                 return;
             }
@@ -236,12 +238,12 @@ public class MessageDeleters : IDisposable
                 return;
             }
 
-            if (await botMain.IsUserModerator(args.Author) == IsModerator.Yes)
+            if (botMain.IsUserModerator(args.Author) == IsModerator.Yes)
             {
                 return;
             }
 
-            if (await botMain.IsUserExemptFromSpamFilter(args.Author) == IsExemptFromSpamFilter.Yes)
+            if (botMain.IsUserExemptFromSpamFilter(args.Author) == IsExemptFromSpamFilter.Yes)
             {
                 return;
             }
@@ -306,15 +308,18 @@ public class MessageDeleters : IDisposable
 
     private Task DeleteMsg(DiscordMessage msg)
     {
-        async Task Delete(Task<IsModerator> t)
+        if (config.TestMode)
         {
-            if (t.Result == IsModerator.No)
-            {
-                await msg.DeleteAsync();
-            }
+            Log.Logger.Error("Attempted to delete a message but test mode is enabled.");
+            return Task.CompletedTask;
         }
 
-        return botMain.IsUserModerator(msg.Author).ContinueWith(Delete);
+        if (botMain.IsUserModerator(msg.Author) is IsModerator.No)
+        {
+            return msg.DeleteAsync();
+        }
+
+        return Task.CompletedTask;
     }
 
     private enum Delete

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -15,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Octokit;
 using Serilog;
+using WatcherBot.Config;
 using WatcherBot.Utils;
 
 namespace WatcherBot;
@@ -107,11 +109,40 @@ public class BotMain : IDisposable
                 ?? throw new Exception("Failed to create delegate for CommandsNextExtension.HandleCommandsAsync!");
     }
 
-    public DiscordGuild OutputGuild => Client.Guilds[config.OutputGuildId];
+    public DiscordGuild? GetOutputGuild(DiscordUser user)
+    {
+        if (!GetMemberFromUser(user, out DiscordMember? member))
+        {
+            Log.Logger.Warning("{GetOutputGuildName}: Unable to get output guild from {DiscordUser}", nameof(GetOutputGuild), user);
+            return null;
+        }
 
-    public DiscordChannel SpamReportChannel => OutputGuild.Channels[config.SpamReportChannel];
+        return member.Guild;
+    }
 
-    public DiscordRole MutedRole => OutputGuild.Roles[config.MutedRole];
+    public DiscordRole? GetMutedRole(DiscordUser user)
+    {
+        if (!GetMemberFromUser(user, out DiscordMember? member) ||
+            !config.GuildSpecificConfigurations.TryGetValue(member.Guild.Id, out GuildConfig? c))
+        {
+            Log.Logger.Warning("{GetMutedRole}: Unable to get output guild from {DiscordUser}", nameof(GetMutedRole), user);
+            return null;
+        }
+
+        return member.Guild.Roles.GetValueOrDefault(c.MutedRole);
+    }
+
+    public DiscordChannel? GetSpamReportChannel(DiscordUser user)
+    {
+        if (!GetMemberFromUser(user, out DiscordMember? member) ||
+            !config.GuildSpecificConfigurations.TryGetValue(member.Guild.Id, out GuildConfig? c))
+        {
+            Log.Logger.Warning("{GetSpamReportChannel}: Unable to get output guild from {DiscordUser}", nameof(GetSpamReportChannel), user);
+            return null;
+        }
+
+        return member.Guild.Channels.GetValueOrDefault(c.SpamReportChannel);
+    }
 
     public void Dispose()
     {
@@ -126,29 +157,39 @@ public class BotMain : IDisposable
 
     public void Kill() => shutdownRequest.Cancel();
 
-    public async Task<IsModerator> IsUserModerator(DiscordUser user)
+    public IsModerator IsUserModerator(DiscordUser user)
     {
-        DiscordMember guildUser = await GetMemberFromUser(user);
-        return config.ModeratorRoleIds.Overlaps(guildUser.Roles.Select(r => r.Id)) ? IsModerator.Yes : IsModerator.No;
+        if (!GetMemberFromUser(user, out DiscordMember? member) ||
+            !config.GuildSpecificConfigurations.TryGetValue(member.Guild.Id, out var c)) { return IsModerator.No; }
+
+        return c.ModeratorRoleIds.Overlaps(member.Roles.Select(static r => r.Id)) ? IsModerator.Yes : IsModerator.No;
     }
 
-    public async Task<DiscordMember> GetMemberFromUser(DiscordUser user) =>
-        user is DiscordMember rgu ? rgu : await OutputGuild.GetMemberAsync(user.Id);
 
-    public async Task<IsExemptFromSpamFilter> IsUserExemptFromSpamFilter(DiscordUser user)
+    public bool GetMemberFromUser(DiscordUser user, [NotNullWhen(true)] out DiscordMember? member)
     {
-        DiscordMember guildUser = await GetMemberFromUser(user);
-        return guildUser.Roles.Any(r => r.Id == config.SpamFilterExemptionRole)
+        member = user as DiscordMember;
+        return member is not null;
+    }
+
+    public IsExemptFromSpamFilter IsUserExemptFromSpamFilter(DiscordUser user)
+    {
+        if (!GetMemberFromUser(user, out DiscordMember? member) ||
+            !config.GuildSpecificConfigurations.TryGetValue(member.Guild.Id, out var c)) { return IsExemptFromSpamFilter.No; }
+
+        return member.Roles.Any(r => r.Id == c.SpamFilterExemptionRole)
                    ? IsExemptFromSpamFilter.Yes
                    : IsExemptFromSpamFilter.No;
     }
 
     public async Task MuteUser(DiscordUser user, string reason)
     {
-        DiscordMember guildUser = await GetMemberFromUser(user);
-        await guildUser.GrantRoleAsync(MutedRole, reason);
-    }
+        if (!GetMemberFromUser(user, out DiscordMember? member) ||
+            !config.GuildSpecificConfigurations.TryGetValue(member.Guild.Id, out GuildConfig? c)) { return; }
 
+        if (!member.Guild.Roles.TryGetValue(c.MutedRole, out DiscordRole? role)) { return; }
+        await member.GrantRoleAsync(role, reason);
+    }
 
     private delegate Task CommandHandler(DiscordClient sender, MessageCreateEventArgs args);
     private readonly CommandHandler commandHandler;

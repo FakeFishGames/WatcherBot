@@ -6,6 +6,8 @@ using DisCatSharp.Entities;
 using DisCatSharp.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
+using WatcherBot.Config;
 using WatcherBot.Utils;
 
 namespace WatcherBot.Commands;
@@ -20,21 +22,31 @@ public class BanCommandModule : BaseCommandModule
         config = cfg.Value;
     }
 
-    private Templates Templates => config.Templates;
-
     private async Task BanMember(
         CommandContext context,
         DiscordMember  member,
         string?        reason,
         Anonymous      anon = Anonymous.No)
     {
+        if (config.TestMode)
+        {
+            Log.Logger.Error("Attempted to ban but test mode is enabled.");
+            return;
+        }
+
+        if (!config.GuildSpecificConfigurations.TryGetValue(context.Guild.Id, out GuildConfig? guildConfig))
+        {
+            await context.Message.Channel.SendMessageAsync("Use this command within the server you want to change the default recipient of.");
+            return;
+        }
+
         context.Client.Logger.LogInformation("Banning {Member} with reason {Reason}",
                                              member.QueryableName(),
                                              reason);
 
-        string banMsg = Templates.Ban.Replace("[reason]", reason ?? "No reason provided")
-                                 .Replace("[banner]",
-                                          Templates.GetAppealRecipients(context.User.QueryableName(), anon));
+        string banMsg = guildConfig.Templates.Ban.Replace("[reason]", reason ?? "No reason provided")
+                                            .Replace("[banner]",
+                                                     guildConfig.Templates.GetAppealRecipients(context.User.QueryableName(), anon));
 
         var appeal = "The appeal message could not be sent.";
         try

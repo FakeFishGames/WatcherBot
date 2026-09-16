@@ -20,10 +20,8 @@ public class Config
 
     public string DiscordApiToken { get; init; } = "";
     public string GitHubToken { get; init; } = "";
-    public ulong OutputGuildId { get; init; }
 
-    private HashSet<ulong> moderatorRoleIds { get; } = new();
-    public IReadOnlySet<ulong> ModeratorRoleIds => moderatorRoleIds;
+    public bool TestMode { get; init; } = false;
 
     private string formattingCharacters { get; } = "";
     public IReadOnlySet<char> FormattingCharacters => formattingCharacters.ToHashSet();
@@ -47,11 +45,11 @@ public class Config
     private HashSet<ulong> noReplies { get; } = new();
     public IReadOnlySet<ulong> NoReplies => noReplies;
 
-    public Templates Templates { get; init; } = new();
-
     private Spam Spam { get; } = new();
 
     private BadWords BadWords { get; } = new();
+
+    public Dictionary<ulong, GuildConfig> GuildSpecificConfigurations { get; } = new();
 
     public IReadOnlySet<(string Substring, int MaxDistance, float Weight)> SpamSubstrings =>
         Spam.SpamSubstrings;
@@ -86,15 +84,10 @@ public class Config
     private HashSet<string> knownSafeSubstrings { get; } = new();
     public IReadOnlySet<string> KnownSafeSubstrings => knownSafeSubstrings;
 
-    public ulong MutedRole { get; init; }
-
     private HashSet<ulong> prohibitFormattingFromUsers { get; } = new();
     public IReadOnlySet<ulong> ProhibitFormattingFromUsers => prohibitFormattingFromUsers;
 
     public Issues Issues { get; } = new();
-
-    public ulong SpamFilterExemptionRole { get; init; }
-    public ulong SpamReportChannel { get; init; }
 
     private HashSet<ulong> keepAliveThreadIds { get; } = new();
     public IReadOnlySet<ulong> KeepAliveThreadIds => keepAliveThreadIds;

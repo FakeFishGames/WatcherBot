@@ -26,7 +26,7 @@ public class KillSwitchModule : BaseCommandModule
     public async Task KillSwitch(CommandContext context)
     {
         DiscordMember member = context.Member;
-        if (await botMain.IsUserModerator(member) == IsModerator.No)
+        if (botMain.IsUserModerator(member) == IsModerator.No)
         {
             await context.RespondAsync($"Error executing !killswitch: {member.Mention} is not a moderator");
             return;

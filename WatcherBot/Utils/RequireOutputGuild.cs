@@ -12,11 +12,11 @@ public class RequireOutputGuild : CheckBaseAttribute
     {
         await Task.Yield();
         var botMain = (BotMain?)ctx.Services.GetService(typeof(BotMain));
-        if (botMain?.OutputGuild is null)
+        if (botMain?.GetOutputGuild(ctx.Member) is not { } guild)
         {
             return false;
         }
 
-        return botMain.OutputGuild == ctx.Guild;
+        return true;
     }
 }

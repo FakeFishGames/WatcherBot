@@ -51,12 +51,7 @@ public static class BarotraumaToolBox
             return dmChannel;
         }
 
-        if (context.Member is not null)
-        {
-            return await context.Member.CreateDmChannelAsync();
-        }
-
-        return null;
+        return await context.Member.CreateDmChannelAsync();
     }
 
     public static async Task RespondDmAsync(this CommandContext context, Action<DiscordMessageBuilder> action)
@@ -138,9 +133,10 @@ public static class BarotraumaToolBox
 
     public static async Task ReportSpam(BotMain botMain, DiscordMessage spamMessage, string reason, bool badWords)
     {
-        DiscordChannel    reportChannel = botMain.SpamReportChannel;
-        DiscordMember     member        = await botMain.GetMemberFromUser(spamMessage.Author);
-        DiscordDmChannel? dmChannel     = await member.CreateDmChannelAsync();
+        if (botMain.GetSpamReportChannel(spamMessage.Author) is not { } reportChannel) { return; }
+
+        DiscordMember     member        = (DiscordMember)spamMessage.Author;
+        DiscordDmChannel  dmChannel     = await member!.CreateDmChannelAsync();
         DiscordMessage?   dm            = null;
         Exception?        dmException   = null;
         try

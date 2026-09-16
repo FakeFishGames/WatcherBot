@@ -101,7 +101,7 @@ public class DuplicateMessageFilter : LoopingTask
         DiscordMessage message) =>
         (_, current) =>
         {
-            if (message.Channel.GuildId == Config.OutputGuildId
+            if (Config.GuildSpecificConfigurations.ContainsKey(message.Channel.GuildId ?? 0)
                 && !string.IsNullOrWhiteSpace(message.Content))
             {
                 bool hasUrl = message.Content.ContainsLink();
