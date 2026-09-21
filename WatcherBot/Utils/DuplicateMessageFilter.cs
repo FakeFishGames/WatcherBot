@@ -60,18 +60,19 @@ public class DuplicateMessageFilter : LoopingTask
 
                 if (numberDuplicates < MaxDuplicateMessages) { continue; }
 
+                var firstMessage = duplicateMessages.First();
                 Logger.LogInformation("Deleting messages sent by and muting {User} for reason {Reason} (sent {Count} messages with content {Content})",
                                       user.UsernameWithDiscriminator,
                                       MessageDeleters.MessageDeletionReason.PotentialSpam,
                                       numberDuplicates,
-                                      duplicateMessages.First().Content);
+                                      $"{firstMessage.Content}{(firstMessage.Attachments.Any() ? $"{firstMessage.Attachments.Count} attachment(s)" : string.Empty)}");
 
                 DiscordChannel[] channels = duplicateMessages.Select(m => m.Channel).DistinctBy(c => c.Id).ToArray();
 
                 string reason =
                     $"{numberDuplicates} copies of this message sent in the last {KeepDuration.TotalSeconds}s"
                     + $" in {string.Join(", ", channels.Select(c => c.Mention))}.";
-                await BarotraumaToolBox.ReportSpam(BotMain, duplicateMessages.First(), reason, badWords: false);
+                await BarotraumaToolBox.ReportSpam(BotMain, firstMessage, reason, badWords: false);
 
                 await BotMain.MuteUser(user, "Auto-detected spam messages");
                 await Task.WhenAll(duplicateMessages.Select(m => m.DeleteAsync("Auto-detected spam message")));
