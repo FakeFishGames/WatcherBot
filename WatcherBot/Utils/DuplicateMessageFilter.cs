@@ -102,11 +102,12 @@ public class DuplicateMessageFilter : LoopingTask
         (_, current) =>
         {
             if (Config.GuildSpecificConfigurations.ContainsKey(message.Channel.GuildId ?? 0)
-                && !string.IsNullOrWhiteSpace(message.Content))
+                && (!string.IsNullOrWhiteSpace(message.Content) || message.Attachments.Any()))
             {
+                bool hasAttachments = message.Attachments.Any();
                 bool hasUrl = message.Content.ContainsLink();
                 bool hasSpamFilterHits = Config.GetSpamFilterHits(message.Content.ToLowerInvariant()).Length > 0;
-                if (hasUrl || hasSpamFilterHits)
+                if (hasUrl || hasSpamFilterHits || hasAttachments)
                 {
                     current.Enqueue(message);
                 }
