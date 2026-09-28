@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 using System.Threading.Tasks;
 using DisCatSharp.CommandsNext;
 using DisCatSharp.CommandsNext.Attributes;
@@ -11,6 +12,11 @@ namespace WatcherBot.Commands;
 public class MiscCommandModule : BaseCommandModule
 {
     public MiscCommandModule() { }
+
+    [Command("version")]
+    [Description("Print current version")]
+    public Task Version(CommandContext context)
+        => context.RespondAsync($"Version: {Assembly.GetExecutingAssembly().GetName().Version}");
 
     [Command("trash")]
     [Description("garbaggio")]
