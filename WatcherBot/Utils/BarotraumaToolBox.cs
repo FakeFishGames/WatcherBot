@@ -165,10 +165,11 @@ public static class BarotraumaToolBox
 
         if (!spamMessage.Channel.IsPrivate)
         {
+            string msg = $"{spamMessage.Content.SanitizeReportMessageContent()}\n{(spamMessage.Attachments.Any() ? string.Join("\n", spamMessage.Attachments.Select(static s => $"[{s.FileName}]")) : string.Empty)}".Trim('\n');
             _ =
                 reportChannel
                     .SendMessageAsync($"{spamMessage.Author.Mention} has been muted for sending the following message in {spamMessage.Channel.Mention}:\n\n"
-                                      + $"```\n{spamMessage.Content.SanitizeReportMessageContent()}\n```\n\n"
+                                      + $"```\n{msg}\n```\n\n"
                                       + $"{reason}\n\n"
                                       + "If this was a false positive, you may revert this by removing the `Muted` role and granting the `Spam filter exemption` role.\n\n"
                                       + (dm != null
