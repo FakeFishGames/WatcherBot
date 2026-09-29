@@ -16,6 +16,9 @@ public class DuplicateMessageFilter : LoopingTask
     private static readonly TimeSpan KeepDuration = TimeSpan.FromSeconds(60);
     private readonly ConcurrentDictionary<DiscordUser, ConcurrentQueue<DiscordMessage>> cache = new();
 
+    private readonly record struct TimedOutUser(ulong UserID, DateTimeOffset TimeOutTimestamp);
+    private readonly ConcurrentQueue<TimedOutUser> timedOutUserCache = new();
+
     public DuplicateMessageFilter(BotMain botMain, IOptions<Config.Config> config) : base(botMain, config)
     { }
 
@@ -59,6 +62,7 @@ public class DuplicateMessageFilter : LoopingTask
                                                                 .MaxBy(t => t.Count);
 
                 if (numberDuplicates < MaxDuplicateMessages) { continue; }
+                timedOutUserCache.Enqueue(new TimedOutUser(user.Id, currentTime));
 
                 var firstMessage = duplicateMessages.First();
                 Logger.LogInformation("Deleting messages sent by and muting {User} for reason {Reason} (sent {Count} messages with content {Content})",
@@ -124,6 +128,19 @@ public class DuplicateMessageFilter : LoopingTask
     {
         DateTimeOffset timestamp = args.Message.Timestamp;
         DateTimeOffset now       = DateTimeOffset.Now;
+
+        while (timedOutUserCache.TryPeek(out TimedOutUser user)
+               && now - user.TimeOutTimestamp >= KeepDuration)
+        {
+            timedOutUserCache.TryDequeue(out _);
+        }
+
+        if (timedOutUserCache.Any(user => user.UserID == args.Message.Author.Id))
+        {
+            args.Message.DeleteAsync();
+            return Task.CompletedTask;
+        }
+
         Logger.LogInformation("Message created at timestamp: {Timestamp}; Now: {Now}", timestamp, now);
         cache.AddOrUpdate(args.Message.Author, Add(args.Message), Update(args.Message));
         return Task.CompletedTask;
