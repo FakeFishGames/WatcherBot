@@ -138,6 +138,10 @@ public class DuplicateMessageFilter : LoopingTask
         if (timedOutUserCache.Any(user => user.UserID == args.Message.Author.Id))
         {
             args.Message.DeleteAsync();
+            if (BotMain.GetSpamReportChannel(args.Message.Author) is { } reportChannel)
+            {
+                reportChannel.SendMessageAsync($"New message from `{args.Author.Username}` found in `{args.Channel.Name}` after being muted. Deleting...");
+            }
             return Task.CompletedTask;
         }
 
