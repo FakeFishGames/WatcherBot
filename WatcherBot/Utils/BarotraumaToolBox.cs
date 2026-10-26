@@ -139,11 +139,14 @@ public static class BarotraumaToolBox
         DiscordDmChannel  dmChannel     = await member!.CreateDmChannelAsync();
         DiscordMessage?   dm            = null;
         Exception?        dmException   = null;
+
+        string msg = $"{spamMessage.Content.SanitizeReportMessageContent()}\n{(spamMessage.Attachments.Any() ? string.Join("\n", spamMessage.Attachments.Select(static s => $"[{s.FileName}]")) : string.Empty)}".Trim('\n');
+
         try
         {
             var msgToSend =
                 $"You have been automatically muted on the Undertow Games server for sending the following message in {spamMessage.Channel.Mention}:\n\n"
-                + $"```\n{spamMessage.Content.Replace("`", "")}\n```\n\n";
+                + $"```\n{msg}\n```\n\n";
             if (!badWords)
             {
                 msgToSend +=
@@ -165,8 +168,7 @@ public static class BarotraumaToolBox
 
         if (!spamMessage.Channel.IsPrivate)
         {
-            string msg = $"{spamMessage.Content.SanitizeReportMessageContent()}\n{(spamMessage.Attachments.Any() ? string.Join("\n", spamMessage.Attachments.Select(static s => $"[{s.FileName}]")) : string.Empty)}".Trim('\n');
-            _ =
+             _ =
                 reportChannel
                     .SendMessageAsync($"{spamMessage.Author.Mention} has been muted for sending the following message in {spamMessage.Channel.Mention}:\n\n"
                                       + $"```\n{msg}\n```\n\n"

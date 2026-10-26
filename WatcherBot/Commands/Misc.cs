@@ -32,4 +32,9 @@ public class MiscCommandModule : BaseCommandModule
     [Description("ffs")]
     public async Task Bezos(CommandContext context) =>
         await context.RespondDmAsync("please shut the fuck up");
+
+    [Command("balls")]
+    [Description("balls")]
+    public async Task Balls(CommandContext context) =>
+        await context.RespondAsync("https://tenor.com/view/balls-bouncing-chungus-get-real-get-fake-gif-18099820");
 }

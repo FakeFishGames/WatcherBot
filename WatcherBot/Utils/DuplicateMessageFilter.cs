@@ -13,7 +13,7 @@ namespace WatcherBot.Utils;
 public class DuplicateMessageFilter : LoopingTask
 {
     private const int MaxDuplicateMessages = 3;
-    private static readonly TimeSpan KeepDuration = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan KeepDuration = TimeSpan.FromSeconds(30);
     private readonly ConcurrentDictionary<DiscordUser, ConcurrentQueue<DiscordMessage>> cache = new();
 
     private readonly record struct TimedOutUser(ulong UserID, DateTimeOffset TimeOutTimestamp);
