@@ -37,4 +37,10 @@ public class MiscCommandModule : BaseCommandModule
     [Description("balls")]
     public async Task Balls(CommandContext context) =>
         await context.RespondAsync("https://tenor.com/view/balls-bouncing-chungus-get-real-get-fake-gif-18099820");
+
+    [Command("warning")]
+    [Aliases("warnings")]
+    [Description("warning")]
+    public async Task Warning(CommandContext context) =>
+        await context.RespondAsync("!warning and !warnings are Dyno commands and Dyno has now moved all commands into slash commands, try /warning or /warnings instead.");
 }
