@@ -40,7 +40,7 @@ public class MiscCommandModule : BaseCommandModule
 
     [Command("warning")]
     [Aliases("warnings")]
-    [Description("warning")]
-    public async Task Warning(CommandContext context) =>
+    [Description("warning disclaimer")]
+    public async Task Warning(CommandContext context, [Description("useless fluff")] params string[] fluff) =>
         await context.RespondAsync("!warning and !warnings are Dyno commands and Dyno has now moved all commands into slash commands, try /warning or /warnings instead.");
 }
