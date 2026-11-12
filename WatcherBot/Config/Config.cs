@@ -54,13 +54,16 @@ public class Config
     public IReadOnlySet<(string Substring, int MaxDistance, float Weight)> SpamSubstrings =>
         Spam.SpamSubstrings;
 
+    public IReadOnlySet<char> SpamChars
+        => Spam.SpamChars;
+
     public (string InText, string InFilter, float Weight)[] GetSpamFilterHits(string messageContentToTest)
     {
         char[] whitespace = new[] { '\n', '\t', '\r', ' ' }.Concat(messageContentToTest.Where(char.IsWhiteSpace))
             .Distinct()
             .ToArray();
         string[] messageContentSplit = messageContentToTest.Split(whitespace);
-        (string InText, string InFilter, float Weight)[] hits = messageContentSplit
+        List<(string InText, string InFilter, float Weight)> hits = messageContentSplit
             .Where(s1 => !string.IsNullOrWhiteSpace(s1))
             .Select(s1 => SpamSubstrings
                     .FirstOrDefault(s2 =>
@@ -74,8 +77,17 @@ public class Config
                 ? (InText: s1, InFilter: substring, Weight: weight)
                 : (InText: "", InFilter: "", Weight: 0.0f))
             .Where(t => t.Weight > 0.0f)
-            .ToArray();
-        return hits;
+            .ToList();
+
+        foreach (char c in messageContentToTest)
+        {
+            if (SpamChars.Contains(c))
+            {
+                string filter = $"U+{((ushort)c):X4}";
+                hits.Add((InText: filter, InFilter: filter, Weight: 0));
+            }
+        }
+        return hits.ToArray();
     }
 
     public IReadOnlySet<(string Substring, int MaxDistance)> BadSubstrings =>
