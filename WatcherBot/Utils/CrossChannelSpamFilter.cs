@@ -18,7 +18,7 @@ public class CrossChannelSpamFilter : LoopingTask
 
     private static readonly TimeSpan DetectionWindow = TimeSpan.FromSeconds(5);
 
-    private static readonly TimeSpan TimedOutKeepDuration = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan TimedOutKeepDuration = TimeSpan.FromSeconds(30);
 
     private readonly object mutex = new();
     private readonly Dictionary<ulong, List<MessageInfo>> recentMessages = new();
@@ -72,7 +72,7 @@ public class CrossChannelSpamFilter : LoopingTask
 
         if (!Config.GuildSpecificConfigurations.ContainsKey(message.Channel.GuildId ?? 0)) { return Task.CompletedTask; }
 
-        //if (BotMain.IsUserModerator(author) == IsModerator.Yes) { return Task.CompletedTask; }
+        if (BotMain.IsUserModerator(author) == IsModerator.Yes) { return Task.CompletedTask; }
 
         if (BotMain.IsUserExemptFromSpamFilter(author) == IsExemptFromSpamFilter.Yes) { return Task.CompletedTask; }
 
