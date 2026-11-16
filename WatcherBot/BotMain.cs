@@ -27,7 +27,8 @@ public class BotMain : IDisposable
 
     private readonly Config.Config config;
 
-    private readonly DuplicateMessageFilter duplicateMessageFilter;
+    //private readonly DuplicateMessageFilter duplicateMessageFilter;
+    private readonly CrossChannelSpamFilter crossChannelSpamFilter;
 
     public readonly GitHubClient GitHubClient;
 
@@ -49,7 +50,7 @@ public class BotMain : IDisposable
                    .BuildServiceProvider();
 
         var configOptions = services.GetRequiredService<IOptions<Config.Config>>();
-        config     = configOptions.Value;
+        config = configOptions.Value;
         Log.Logger = new LoggerConfiguration().ReadFrom.Configuration(configurationRoot).CreateLogger();
 
         Log.Logger.Information("Starting bot");
@@ -64,9 +65,9 @@ public class BotMain : IDisposable
         //Discord API
         var discordConfiguration = new DiscordConfiguration
         {
-            Token         = config.DiscordApiToken,
-            TokenType     = TokenType.Bot,
-            Intents       = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContent,
+            Token = config.DiscordApiToken,
+            TokenType = TokenType.Bot,
+            Intents = DiscordIntents.AllUnprivileged | DiscordIntents.MessageContent,
             AutoReconnect = true,
             LoggerFactory = new LoggerFactory().AddSerilog(Log.Logger),
         };
@@ -82,9 +83,13 @@ public class BotMain : IDisposable
         Client.MessageCreated += deleters.DeletePotentialSpam;
         Client.MessageCreated += deleters.ReplyInNoConversationChannel;
 
-        duplicateMessageFilter =  new DuplicateMessageFilter(this, configOptions);
-        Client.MessageCreated  += duplicateMessageFilter.MessageCreated;
-        duplicateMessageFilter.Start();
+        /*duplicateMessageFilter = new DuplicateMessageFilter(this, configOptions);
+        Client.MessageCreated += duplicateMessageFilter.MessageCreated;
+        duplicateMessageFilter.Start();*/
+
+        crossChannelSpamFilter = new CrossChannelSpamFilter(this, configOptions);
+        Client.MessageCreated += crossChannelSpamFilter.MessageCreated;
+        crossChannelSpamFilter.Start();
 
         threadKeepAlive = new ThreadKeepAlive(this, configOptions);
         threadKeepAlive.Start();
@@ -99,14 +104,14 @@ public class BotMain : IDisposable
         };
         CommandsNextExtension commands = Client.UseCommandsNext(commandsConfig);
         commands.CommandExecuted += Logging.Logging.CommandExecuted;
-        commands.CommandErrored  += Logging.Logging.CommandErrored;
+        commands.CommandErrored += Logging.Logging.CommandErrored;
         commands.RegisterConverter(new DateTimeConverter());
         commands.RegisterCommands(Assembly.GetAssembly(typeof(BotMain))!);
 
         commandHandler = typeof(CommandsNextExtension).GetMethod("HandleCommandsAsync",
-                BindingFlags.Instance | BindingFlags.NonPublic)
-            ?.CreateDelegate<CommandHandler>(commands)
-                ?? throw new Exception("Failed to create delegate for CommandsNextExtension.HandleCommandsAsync!");
+                                                                 BindingFlags.Instance | BindingFlags.NonPublic)
+                                                      ?.CreateDelegate<CommandHandler>(commands)
+                         ?? throw new Exception("Failed to create delegate for CommandsNextExtension.HandleCommandsAsync!");
     }
 
     public DiscordGuild? GetOutputGuild(DiscordUser user)
@@ -147,15 +152,18 @@ public class BotMain : IDisposable
     public void Dispose()
     {
         Client.Dispose();
-        duplicateMessageFilter.Cancel();
-        duplicateMessageFilter.Dispose();
+        /*duplicateMessageFilter.Cancel();
+        duplicateMessageFilter.Dispose();*/
+        crossChannelSpamFilter.Cancel();
+        crossChannelSpamFilter.Dispose();
         threadKeepAlive.Cancel();
         threadKeepAlive.Dispose();
         services.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    public void Kill() => shutdownRequest.Cancel();
+    public void Kill()
+        => shutdownRequest.Cancel();
 
     public IsModerator IsUserModerator(DiscordUser user)
     {
@@ -188,11 +196,13 @@ public class BotMain : IDisposable
             !config.GuildSpecificConfigurations.TryGetValue(member.Guild.Id, out GuildConfig? c)) { return; }
 
         if (!member.Guild.Roles.TryGetValue(c.MutedRole, out DiscordRole? role)) { return; }
+
         await member.GrantRoleAsync(role, reason);
     }
 
     private delegate Task CommandHandler(DiscordClient sender, MessageCreateEventArgs args);
     private readonly CommandHandler commandHandler;
+
     private Task HandleCommand(DiscordClient sender, MessageCreateEventArgs args)
     {
         if (!config.ProhibitCommandsFromUsers.Contains(args.Author.Id))
