@@ -16,7 +16,9 @@ public class CrossChannelSpamFilter : LoopingTask
     private readonly record struct MessageInfo(DiscordMessage Message, DateTimeOffset Timestamp);
     private const int MaxDistinctChannels = 3;
 
+
     private static readonly TimeSpan DetectionWindow = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan MessageKeepDuration = TimeSpan.FromSeconds(30);
 
     private static readonly TimeSpan TimedOutKeepDuration = TimeSpan.FromSeconds(30);
 
@@ -53,7 +55,7 @@ public class CrossChannelSpamFilter : LoopingTask
 
             foreach ((ulong userId, List<MessageInfo> messages) in recentMessages.ToArray())
             {
-                if (messages.All(m => now - m.Timestamp >= DetectionWindow))
+                if (messages.All(m => now - m.Timestamp >= MessageKeepDuration))
                 {
                     recentMessages.Remove(userId);
                 }
@@ -72,7 +74,7 @@ public class CrossChannelSpamFilter : LoopingTask
 
         if (!Config.GuildSpecificConfigurations.ContainsKey(message.Channel.GuildId ?? 0)) { return Task.CompletedTask; }
 
-        if (BotMain.IsUserModerator(author) == IsModerator.Yes) { return Task.CompletedTask; }
+        //if (BotMain.IsUserModerator(author) == IsModerator.Yes) { return Task.CompletedTask; }
 
         if (BotMain.IsUserExemptFromSpamFilter(author) == IsExemptFromSpamFilter.Yes) { return Task.CompletedTask; }
 
@@ -94,10 +96,15 @@ public class CrossChannelSpamFilter : LoopingTask
                     recentMessages.Add(author.Id, messages);
                 }
 
-                messages.RemoveAll(m => now - m.Timestamp >= DetectionWindow);
+                messages.RemoveAll(m => now - m.Timestamp >= MessageKeepDuration);
                 messages.Add(new MessageInfo(message, now));
 
-                if (messages.Select(static m => m.Message.ChannelId).Distinct().Count() >= MaxDistinctChannels)
+                int distinctChannels = messages.Where(m => now - m.Timestamp < DetectionWindow)
+                                               .Select(static m => m.Message.ChannelId)
+                                               .Distinct()
+                                               .Count();
+
+                if (distinctChannels >= MaxDistinctChannels)
                 {
                     spamMessages = messages.Select(static m => m.Message).ToArray();
                     recentMessages.Remove(author.Id);
