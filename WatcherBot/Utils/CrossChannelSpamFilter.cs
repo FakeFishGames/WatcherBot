@@ -74,7 +74,7 @@ public class CrossChannelSpamFilter : LoopingTask
 
         if (!Config.GuildSpecificConfigurations.ContainsKey(message.Channel.GuildId ?? 0)) { return Task.CompletedTask; }
 
-        //if (BotMain.IsUserModerator(author) == IsModerator.Yes) { return Task.CompletedTask; }
+        if (BotMain.IsUserModerator(author) == IsModerator.Yes) { return Task.CompletedTask; }
 
         if (BotMain.IsUserExemptFromSpamFilter(author) == IsExemptFromSpamFilter.Yes) { return Task.CompletedTask; }
 
